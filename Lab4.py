@@ -4,7 +4,6 @@ import cv2
 import numpy as np
 import math
 
-cam = cv2.VideoCapture("Lane_Detection_Test_Video_01.mp4")
 cam = cv2.VideoCapture('.\\data\\Lane_Detection_Test_Video_01.mp4')
 
 <<<<<<< Updated upstream
