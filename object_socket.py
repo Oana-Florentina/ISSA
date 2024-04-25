@@ -7,12 +7,15 @@ from typing import *
 
 
 class ObjectSocketParams:
+    """Parameters for ObjectSocket module."""
     OBJECT_HEADER_SIZE_BYTES = 4
     DEFAULT_TIMEOUT_S = 1
     CHUNK_SIZE_BYTES = 1024
 
 
 class ObjectSenderSocket:
+    """A class for sending objects over a socket connection."""
+
     ip: str
     port: int
     sock: socket.socket
@@ -23,6 +26,15 @@ class ObjectSenderSocket:
     def __init__(self, ip: str, port: int,
                  print_when_awaiting_receiver: bool = False,
                  print_when_sending_object: bool = False):
+        """
+        Initializes an ObjectSenderSocket instance.
+
+        Args:
+            ip (str): The IP address to bind the socket.
+            port (int): The port to bind the socket.
+            print_when_awaiting_receiver (bool, optional): Whether to print messages when waiting for the receiver to connect. Defaults to False.
+            print_when_sending_object (bool, optional): Whether to print messages when sending an object. Defaults to False.
+        """
         self.ip = ip
         self.port = port
 
@@ -33,10 +45,12 @@ class ObjectSenderSocket:
         self.print_when_awaiting_receiver = print_when_awaiting_receiver
         self.print_when_sending_object = print_when_sending_object
 
-        self.await_receiver_conection()
+        self.await_receiver_connection()
 
-    def await_receiver_conection(self):
-
+    def await_receiver_connection(self):
+        """
+        Waits for the receiver to connect to the socket.
+        """
         if self.print_when_awaiting_receiver:
             print(f'[{datetime.datetime.now()}][ObjectSenderSocket/{self.ip}:{self.port}] awaiting receiver connection...')
 
@@ -47,13 +61,28 @@ class ObjectSenderSocket:
             print(f'[{datetime.datetime.now()}][ObjectSenderSocket/{self.ip}:{self.port}] receiver connected')
 
     def close(self):
+        """
+        Closes the socket connection.
+        """
         self.conn.close()
         self.conn = None
 
     def is_connected(self) -> bool:
+        """
+        Checks if the socket is connected.
+
+        Returns:
+            bool: True if connected, False otherwise.
+        """
         return self.conn is not None
 
     def send_object(self, obj: Any):
+        """
+        Sends a pickled object over the socket.
+
+        Args:
+            obj (Any): The object to send.
+        """
         data = pickle.dumps(obj)
         data_size = len(data)
         data_size_encoded = data_size.to_bytes(ObjectSocketParams.OBJECT_HEADER_SIZE_BYTES, 'little')
@@ -63,8 +92,9 @@ class ObjectSenderSocket:
             print(f'[{datetime.datetime.now()}][ObjectSenderSocket/{self.ip}:{self.port}] Sent object of size {data_size} bytes.')
 
 
-
 class ObjectReceiverSocket:
+    """A class for receiving objects over a socket connection."""
+
     ip: str
     port: int
     conn: socket.socket
@@ -74,6 +104,15 @@ class ObjectReceiverSocket:
     def __init__(self, ip: str, port: int,
                  print_when_connecting_to_sender: bool = False,
                  print_when_receiving_object: bool = False):
+        """
+        Initializes an ObjectReceiverSocket instance.
+
+        Args:
+            ip (str): The IP address of the sender.
+            port (int): The port of the sender.
+            print_when_connecting_to_sender (bool, optional): Whether to print messages when connecting to the sender. Defaults to False.
+            print_when_receiving_object (bool, optional): Whether to print messages when receiving an object. Defaults to False.
+        """
         self.ip = ip
         self.port = port
         self.print_when_connecting_to_sender = print_when_connecting_to_sender
@@ -82,7 +121,9 @@ class ObjectReceiverSocket:
         self.connect_to_sender()
 
     def connect_to_sender(self):
-
+        """
+        Connects to the sender socket.
+        """
         if self.print_when_connecting_to_sender:
             print(f'[{datetime.datetime.now()}][ObjectReceiverSocket/{self.ip}:{self.port}] connecting to sender...')
 
@@ -93,13 +134,28 @@ class ObjectReceiverSocket:
             print(f'[{datetime.datetime.now()}][ObjectReceiverSocket/{self.ip}:{self.port}] connected to sender')
 
     def close(self):
+        """
+        Closes the socket connection.
+        """
         self.conn.close()
         self.conn = None
 
     def is_connected(self) -> bool:
+        """
+        Checks if the socket is connected.
+
+        Returns:
+            bool: True if connected, False otherwise.
+        """
         return self.conn is not None
 
     def recv_object(self) -> Any:
+        """
+        Receives a pickled object from the socket.
+
+        Returns:
+            Any: The received object.
+        """
         obj_size_bytes = self._recv_object_size()
         data = self._recv_all(obj_size_bytes)
         obj = pickle.loads(data)
@@ -108,6 +164,16 @@ class ObjectReceiverSocket:
         return obj
 
     def _recv_with_timeout(self, n_bytes: int, timeout_s: float = ObjectSocketParams.DEFAULT_TIMEOUT_S) -> Optional[bytes]:
+        """
+        Receives data from the socket with a specified timeout.
+
+        Args:
+            n_bytes (int): The number of bytes to receive.
+            timeout_s (float, optional): The timeout duration in seconds. Defaults to ObjectSocketParams.DEFAULT_TIMEOUT_S.
+
+        Returns:
+            Optional[bytes]: The received data, or None if timeout occurs.
+        """
         rlist, _1, _2 = select.select([self.conn], [], [], timeout_s)
         if rlist:
             data = self.conn.recv(n_bytes)
@@ -116,6 +182,16 @@ class ObjectReceiverSocket:
             return None  # Only returned on timeout
 
     def _recv_all(self, n_bytes: int, timeout_s: float = ObjectSocketParams.DEFAULT_TIMEOUT_S) -> bytes:
+        """
+        Receives all data from the socket.
+
+        Args:
+            n_bytes (int): The total number of bytes to receive.
+            timeout_s (float, optional): The timeout duration in seconds. Defaults to ObjectSocketParams.DEFAULT_TIMEOUT_S.
+
+        Returns:
+            bytes: The received data.
+        """
         data = []
         left_to_recv = n_bytes
         while left_to_recv > 0:
@@ -132,8 +208,12 @@ class ObjectReceiverSocket:
         return data
 
     def _recv_object_size(self) -> int:
+        """
+        Receives the size of the pickled object from the socket.
+
+        Returns:
+            int: The size of the object in bytes.
+        """
         data = self._recv_all(ObjectSocketParams.OBJECT_HEADER_SIZE_BYTES)
         obj_size_bytes = int.from_bytes(data, 'little')
         return obj_size_bytes
-
-
